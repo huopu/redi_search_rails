@@ -20,6 +20,7 @@ module RediSearchRails
       @model = self.name.constantize
       @index_name = @model.to_s
       @score = 1
+      @language = @model::FT_LANGUAGE
     end
 
     # search the index for specific keyword(s)
@@ -32,11 +33,13 @@ module RediSearchRails
     def ft_search keyword:, offset: 0, num: 10, filter: {}
       if filter[:numeric_field].blank?
         results = REDI_SEARCH.call('FT.SEARCH', @index_name, keyword.strip,
-          'LIMIT', offset, num)
+          'LIMIT', offset, num,
+          'LANGUAGE', @language)
       else
         results = REDI_SEARCH.call('FT.SEARCH', @index_name, keyword.strip,
           'LIMIT', offset, num,
-          'FILTER', filter[:numeric_field], filter[:min], filter[:max]
+          'FILTER', filter[:numeric_field], filter[:min], filter[:max],
+          'LANGUAGE', @language
         )
       end
       #'NOCONTENT', 'VERBATIM',  'WITHSCORES', 'NOSTOPWORDS', 'WITHPAYLOADS',
@@ -117,7 +120,8 @@ module RediSearchRails
       @fields.each { |field| fields.push(field, record.send(field)) }
       REDI_SEARCH.call('FT.ADD', @index_name, record.to_global_id.to_s, @score,
         'REPLACE',
-        'FIELDS', fields
+        'FIELDS', fields,
+        'LANGUAGE', @language
         #'NOSAVE', 'PAYLOAD', 'LANGUAGE'
       )
     rescue Exception => e
